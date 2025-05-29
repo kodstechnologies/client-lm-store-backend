@@ -197,11 +197,12 @@ export const checkCustomerEligibility = async (req, res) => {
         }
 
         return res.status(200).json({
-            success: true,
-            message: `Eligibility check completed${isEligible ? " and eligible" : " - not eligible"}`,
+            success: isEligible,
+            message: customerDoc.message,
             data: savedCustomer,
             eligibleLoanAmount: customerDoc.data.max_amount
         });
+
 
     } catch (error) {
         console.error(error);
