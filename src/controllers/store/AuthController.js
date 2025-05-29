@@ -132,84 +132,116 @@ export const verifyOtp = async (req, res) => {
 
   try {
     const record = await StoreLoginOtpsModel.findOne({ mobileNumber });
-    if (!record) {
-      return res.status(400).json({ message: 'No OTP sent to this number' });
-    }
+    if (!record) return res.status(400).json({ message: 'No OTP sent to this number' });
 
     if (Date.now() > Number(record.otpExpiry)) {
       return res.status(400).json({ message: 'OTP expired' });
     }
 
-    if (record.otp === otp) {
-
-      //  Find the store
-      const store = await Store.findOne({ Phone: mobileNumber }).populate('ChainStoreId');;
-      let storeIsActive = null;
-
-      if (store) {
-        // Check if the store's IsActive status is true
-        storeIsActive = store.IsActive;
-
-        if (!storeIsActive) {
-          return res.status(400).json({
-            success: false,
-            isActive: false,
-            message: 'Store is not active',
-          });
-        }
-
-        //  Update LoginCount and LastLoginDate if the store is active
-        store.LoginCount += 1;
-        store.lastLoginDate = new Date();  // Update to current date
-        await store.save();
-
-        // If store is active, generate JWT token for the store
-        const storeToken = jwt.sign(
-          {
-            storeId: store._id,
-            phoneNumber: store.Phone,
-            storeName: store.Name,
-            email: store.Email,
-            state: store.State,
-            gstin: store.GSTIN,
-            affiliateId: store.AffiliateId,
-            accountId: store.AccountId,
-            ChainStoreId: store.ChainStoreId,
-            StoreCode: store.StoreCode,
-            pinCode: store.pinCode,
-            ifscCode: store.ifscCode,
-            isActive: store.IsActive,
-          },
-          process.env.JWT_SECRET,
-
-        );
-
-
-        return res.status(200).json({
-          success: true,
-          message: "OTP verified successfully for Store",
-          token: storeToken, // Returning Store JWT token
-          isActive: storeIsActive, // Returning IsActive status
-          storeId: store._id,
-          storeName: store.Name,
-          storeEmail: store.Email,
-          storePhone: store.Phone,
-          storeMerchant: store.ChainStoreId,
-          storeMerchantName: store.ChainStoreId?.Name || null, // new field
-          StoreCode: store.StoreCode,
-
-          lastLoginDate: store.lastLoginDate,
-          loginCount: store.LoginCount,
-        });
-
-      } else {
-        return res.status(400).json({ message: 'Store not found' });
-      }
-
-    } else {
+    if (record.otp !== otp) {
       return res.status(400).json({ message: "Invalid OTP, please check again." });
     }
 
+    // First: Try finding a Store
+    let store = await Store.findOne({ Phone: mobileNumber }).populate('ChainStoreId');
+
+    if (store) {
+      // ChainStore must be active
+      if (!store.ChainStoreId?.IsActive) {
+        return res.status(403).json({
+          success: false,
+          isActive: false,
+          message: 'ChainStore (Merchant) is disabled. Login not allowed.',
+        });
+      }
+
+      // Store must be active
+      if (!store.IsActive) {
+        return res.status(403).json({
+          success: false,
+          isActive: false,
+          message: 'Store is not active',
+        });
+      }
+
+      store.LoginCount += 1;
+      store.LastLoginDate = new Date();
+      await store.save();
+
+      const storeToken = jwt.sign(
+        {
+          storeId: store._id,
+          phoneNumber: store.Phone,
+          storeName: store.Name,
+          email: store.Email,
+          state: store.State,
+          gstin: store.GSTIN,
+          affiliateId: store.AffiliateId,
+          accountId: store.AccountId,
+          ChainStoreId: store.ChainStoreId._id,
+          StoreCode: store.StoreCode,
+          pinCode: store.pinCode,
+          ifscCode: store.ifscCode,
+          isActive: store.IsActive,
+        },
+        process.env.JWT_SECRET
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: 'OTP verified successfully for Store',
+        userType: 'store',
+        token: storeToken,
+        isActive: store.IsActive,
+        storeId: store._id,
+        storeName: store.Name,
+        storeEmail: store.Email,
+        storePhone: store.Phone,
+        storeMerchant: store.ChainStoreId._id,
+        storeMerchantName: store.ChainStoreId.Name || null,
+        StoreCode: store.StoreCode,
+        lastLoginDate: store.LastLoginDate,
+        loginCount: store.LoginCount,
+      });
+    }
+
+    // If no store, check ChainStore directly
+    const chainStore = await Merchant.findOne({ Phone: mobileNumber });
+
+    if (!chainStore) {
+      return res.status(400).json({ message: 'Store or ChainStore not found' });
+    }
+
+    if (!chainStore.IsActive) {
+      return res.status(403).json({
+        success: false,
+        isActive: false,
+        message: 'ChainStore (Merchant) is disabled. Login not allowed.',
+      });
+    }
+
+    const merchantToken = jwt.sign(
+      {
+        merchantId: chainStore._id,
+        phoneNumber: chainStore.Phone,
+        merchantName: chainStore.Name,
+        email: chainStore.Email,
+        isActive: chainStore.IsActive,
+      },
+      process.env.JWT_SECRET
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: 'OTP verified successfully for ChainStore',
+      userType: 'merchant',
+      token: merchantToken,
+      isActive: chainStore.IsActive,
+      merchantId: chainStore._id,
+      storeMerchantName: chainStore.Name,
+      storeEmail: chainStore.Email,
+      storePhone: chainStore.Phone,
+    });
   } catch (err) {
     console.error("Server error:", err);
     return res.status(500).json({ message: 'Server error during OTP verification' });
