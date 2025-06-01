@@ -71,7 +71,6 @@ export const fetchAllOrders = async (req, res) => {
     }
 };
 
-
 export const getOrdersByStoreId = async (req, res) => {
     try {
         const { storeId } = req.store;

@@ -2,8 +2,21 @@ import OrdersModel from "../../models/Orders.model.js";
 
 export const getOrderStatusCounts = async (req, res) => {
     try {
-        const qrGeneratedCount = await OrdersModel.countDocuments({ status: 'QR Generated' });
-        const completedCount = await OrdersModel.countDocuments({ status: 'Completed' });
+        const storeId = req.store?.storeId;
+
+        if (!storeId) {
+            return res.status(400).json({ message: 'Store ID is missing from token' });
+        }
+
+        const qrGeneratedCount = await OrdersModel.countDocuments({
+            status: 'QR Generated',
+            storeId: storeId,
+        });
+
+        const completedCount = await OrdersModel.countDocuments({
+            status: 'Completed',
+            storeId: storeId,
+        });
 
         res.status(200).json({
             qrGenerated: qrGeneratedCount,
@@ -14,14 +27,22 @@ export const getOrderStatusCounts = async (req, res) => {
     }
 };
 
+
 //stats of orders
 export const getMonthlyOrderStats = async (req, res) => {
     try {
+        const storeId = req.store?.storeId;
+
+        if (!storeId) {
+            return res.status(400).json({ message: 'Store ID is missing from token' });
+        }
+
         const stats = await OrdersModel.aggregate([
             {
                 $match: {
                     createdAt: { $exists: true },
                     status: { $in: ['QR Generated', 'Completed'] },
+                    storeId: storeId, // match specific store
                 }
             },
             {
@@ -35,14 +56,12 @@ export const getMonthlyOrderStats = async (req, res) => {
             }
         ]);
 
-        // Initialize chart data for 12 months
         const chartData = Array.from({ length: 12 }, (_, i) => ({
             month: i + 1,
             qrGenerated: 0,
             completed: 0,
         }));
 
-        // Fill in the counts from aggregation
         stats.forEach(stat => {
             const monthIndex = stat._id.month - 1;
             if (stat._id.status === 'QR Generated') {

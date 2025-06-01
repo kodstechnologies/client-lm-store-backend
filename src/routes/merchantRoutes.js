@@ -25,10 +25,10 @@ router.get('/all-orders', fetchAllOrders)
 router.get('/orders-by-store', getOrdersByStoreId)
 router.put('/update-order-by-id/:orderId', updateOrderById)
 router.get('/search-by-number', searchOrderByNumber)
-router.get('/status-counts', getOrderStatusCounts)
 
 
 //dashboard
+router.get('/status-counts', getOrderStatusCounts)
 router.get('/monthly-stats', getMonthlyOrderStats)
 
 
