@@ -2,9 +2,11 @@ import { Merchant } from "../../models/Merchant.model.js";
 import otpModel from "../../models/otp.model.js";
 import { Store } from "../../models/store.model.js";
 import sendSMS from "../../services/sendSMS.js";
-import Joi from 'Joi';
+import Joi from "joi";
+// import Joi from 'Joi';
 import jwt from 'jsonwebtoken';
 import StoreLoginOtpsModel from "../../models/StoreLoginOtps.model.js";
+
 
 export const mobileVerify = async (req, res) => {
   const mobileVerifySchema = Joi.object({
@@ -19,38 +21,45 @@ export const mobileVerify = async (req, res) => {
   const { mobileNumber } = req.body;
 
   try {
-    if (mobileNumber) {
-      const otp = Math.floor(100000 + Math.random() * 900000);
-      console.log("🚀 ~ mobileVerify ~ otp:", otp)
-      const message = `${otp} is your OTP to login to LittleMoney portal.`;
+    // Check if mobileNumber exists in Store or Merchant (ChainStore)
+    const storeExists = await Store.findOne({ Phone: mobileNumber });
+    const merchantExists = await Merchant.findOne({ Phone: mobileNumber });
 
-      await sendSMS(mobileNumber, message);
-
-      const otpExpiry = Date.now() + 5 * 60 * 1000;
-      console.log("🚀 ~ mobileVerify ~ otpExpiry:", otpExpiry);
-
-      const otpDoc = await StoreLoginOtpsModel.findOneAndUpdate(
-        { mobileNumber },
-        { mobileNumber, otp, otpExpiry },
-        { upsert: true, new: true }
-      );
-
-      console.log("✅ OTP record saved/updated:", otpDoc);
-      console.log("OTP saved for:", mobileNumber);
-      console.log("Generated OTP:", otp);
-
-      return res.status(200).json({
-        success: true,
-        message: mobileNumber,
-        // otp: otp, // (uncomment if you want to send otp back for testing)
-      });
+    if (!storeExists && !merchantExists) {
+      return res.status(404).json({ message: 'Mobile number not registered as a Store or Merchant' });
     }
+
+    //  Generate OTP
+    const otp = Math.floor(100000 + Math.random() * 900000);
+    console.log("🚀 ~ mobileVerify ~ otp:", otp);
+
+    const message = `${otp} is your OTP to login to LittleMoney portal.`;
+
+    await sendSMS(mobileNumber, message);
+
+    const otpExpiry = Date.now() + 5 * 60 * 1000;
+    console.log("🚀 ~ mobileVerify ~ otpExpiry:", otpExpiry);
+
+    const otpDoc = await StoreLoginOtpsModel.findOneAndUpdate(
+      { mobileNumber },
+      { mobileNumber, otp, otpExpiry },
+      { upsert: true, new: true }
+    );
+
+    console.log(" OTP record saved/updated:", otpDoc);
+    console.log("OTP saved for:", mobileNumber);
+    console.log("Generated OTP:", otp);
+
+    return res.status(200).json({
+      success: true,
+      message: mobileNumber,
+      // otp: otp, // (Uncomment only for testing, not in prod)
+    });
   } catch (error) {
-    console.error("Error in mobileVerify:", error);
+    console.error(" Error in mobileVerify:", error);
     return res.status(500).json({ message: error.message || "Internal Server Error" });
   }
 };
-
 
 
 
