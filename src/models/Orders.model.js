@@ -15,6 +15,12 @@ const orderSchema = new mongoose.Schema({
     enum: ['QR Generated', 'Completed', 'Processed', 'On Hold', 'Settled', 'Rejected'],
     default: 'QR Generated'  // default status 
   },
+  storeId: {
+    type: String,
+  },
+  chainStoreId: {
+    type: String,
+  },
   name: {
     type: String
   },
@@ -28,9 +34,9 @@ const orderSchema = new mongoose.Schema({
     type: String
   },
 },
- {
-  timestamps: true
-});
+  {
+    timestamps: true
+  });
 orderSchema.pre('save', function (next) {
   if (this.isNew && !this.orderId) {
     const shortNum = Math.floor(10000 + Math.random() * 90000);

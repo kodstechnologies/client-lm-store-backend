@@ -2,7 +2,7 @@ import express from "express";
 import { mobileVerify, verifyOtp } from "../controllers/store/AuthController.js";
 import { checkCustomerEligibility, sendOtpEligibilityCheck, verifyOtpEligibilityCheck } from "../controllers/Merchant/createOrder.controller.js";
 import { authenticateToken } from "../middlewares/authMiddleware.js";
-import { createOrderForEligibleCustomer, fetchAllOrders, searchOrderByNumber, updateOrderById } from "../controllers/Merchant/OrderManagement.controller.js";
+import { createOrderForEligibleCustomer, fetchAllOrders, getOrdersByStoreId, searchOrderByNumber, updateOrderById } from "../controllers/Merchant/OrderManagement.controller.js";
 import { getMonthlyOrderStats, getOrderStatusCounts } from "../controllers/Merchant/dashboard.controller.js";
 const router = express.Router();
 
@@ -22,7 +22,7 @@ router.get("/order/:orderId", (req, res) => {
 // router.use()
 //order management
 router.get('/all-orders', fetchAllOrders)
-
+router.get('/orders-by-store', getOrdersByStoreId)
 router.put('/update-order-by-id/:orderId', updateOrderById)
 router.get('/search-by-number', searchOrderByNumber)
 router.get('/status-counts', getOrderStatusCounts)
