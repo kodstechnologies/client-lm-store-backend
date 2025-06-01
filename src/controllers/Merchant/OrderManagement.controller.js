@@ -20,8 +20,8 @@ export const createOrderForEligibleCustomer = async (req, res) => {
 
         // Extract storeId and chainStoreId from JWT token (req.user)
         const { storeId, merchantId } = req.store;
-        console.log("🚀 ~ createOrderForEligibleCustomer ~ storeId:", storeId)
-        console.log("🚀 ~ createOrderForEligibleCustomer ~ ChainStoreId:", merchantId)
+        // console.log("🚀 ~ createOrderForEligibleCustomer ~ storeId:", storeId)
+        // console.log("🚀 ~ createOrderForEligibleCustomer ~ ChainStoreId:", merchantId)
 
         // Create order without qrUrl first (orderId will be auto-generated in pre-save)
         const order = new OrdersModel({
