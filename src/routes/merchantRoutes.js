@@ -8,17 +8,18 @@ const router = express.Router();
 
 router.post("/mobile-verification", mobileVerify);
 router.post("/otp-verify", verifyOtp)
+router.get("/order/:orderId", (req, res) => {
+    return res.redirect(
+        "https://web.fatakpay.com/authentication/login?utm_source=556_JQG70&utm_medium="
+    );
+});
 router.use(authenticateToken)
 //create order
 router.post('/send-otp-eligibility-check', sendOtpEligibilityCheck)
 router.post('/otp-verify-eligible-check', verifyOtpEligibilityCheck)
 router.post('/check-customer-eligibility', checkCustomerEligibility)
 router.post('/create-order', createOrderForEligibleCustomer)
-router.get("/order/:orderId", (req, res) => {
-    return res.redirect(
-        "https://web.fatakpay.com/authentication/login?utm_source=556_JQG70&utm_medium="
-    );
-});
+
 // router.use()
 //order management
 router.get('/all-orders', fetchAllOrders)

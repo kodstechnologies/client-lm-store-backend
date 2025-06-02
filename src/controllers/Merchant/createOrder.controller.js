@@ -177,9 +177,10 @@ export const checkCustomerEligibility = async (req, res) => {
             max_eligibility_amount: result?.data?.max_eligibility_amount,
             tenure: result?.data?.tenure || undefined,
             data: result?.data || result,
-            MerchantId: merchantId,
+            ChainStoreId: merchantId,
             storeId: storeId,
         };
+        console.log("🚀 ~ checkCustomerEligibility ~ customerDoc.ChainStoreId:", customerDoc.ChainStoreId)
         console.log("🚀 ~ checkCustomerEligibility ~ customerDoc.max_eligibility_amount:", customerDoc.max_eligibility_amount)
 
         const savedCustomer = await Customer.findOneAndUpdate(
