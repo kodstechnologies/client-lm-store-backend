@@ -4,7 +4,6 @@ import jwt from 'jsonwebtoken';
 import EligibilityCheckOtpsModel from '../../models/EligibilityCheckOtps.model.js'
 import { checkEligibilityWithFatakpay } from "../../Utils/fatakpayapi.js";
 import { Customer } from "../../models/Customer.model.js";
-import { LenderErrorApiResponse } from "../../models/LenderErrorApiResponse .model.js";
 
 export const sendOtpEligibilityCheck = async (req, res) => {
     const mobileNumberSchema = Joi.object({
@@ -76,6 +75,7 @@ export const verifyOtpEligibilityCheck = async (req, res) => {
             // ✅ OTP matched — now check in Customer DB
             const customer = await Customer.findOne({ mobileNumber });
 
+            console.log("🚀 ~ verifyOtpEligibilityCheck ~ customer:", customer)
             if (customer) {
                 const isEligible = customer.eligibility_status === true;
 
@@ -94,9 +94,21 @@ export const verifyOtpEligibilityCheck = async (req, res) => {
                         success: true,
                         message: "Customer eligible",
                         max_eligibility_amount: customer.data?.max_eligibility_amount || 0,
+                        max_amount:customer.data?.max_amount,
                         customerId: customer._id
                     });
                 } else {
+                    if (customer.message === "User already exists in the system.") {
+                        return res.status(200).json({
+                            success: true,
+                            message: "Customer eligible with (User already exists in the system.)",
+                            customerId: customer._id,
+                            max_eligibility_amount: customer.data?.max_eligibility_amount || 3000,
+                            max_amount:customer.data?.max_amount||10000,
+                            tenure: customer.data?.tenure || 30
+                        });
+                    }
+
                     return res.status(200).json({
                         success: false,
                         message: "Customer not eligible",
@@ -159,6 +171,8 @@ export const checkCustomerEligibility = async (req, res) => {
         const result = await checkEligibilityWithFatakpay(cleanedCustomerData);
 
         const isEligible = result?.data?.eligibility_status === true;
+        const userAlreadyExists = result?.message === "User already exists in the system.";
+        const shouldProceed = isEligible || userAlreadyExists;
 
         const customerDoc = {
             mobileNumber: cleanedCustomerData.mobile,
@@ -183,26 +197,31 @@ export const checkCustomerEligibility = async (req, res) => {
         console.log("🚀 ~ checkCustomerEligibility ~ customerDoc.ChainStoreId:", customerDoc.ChainStoreId)
         console.log("🚀 ~ checkCustomerEligibility ~ customerDoc.max_eligibility_amount:", customerDoc.max_eligibility_amount)
 
+        if (!isEligible) {
+            customerDoc.LenderErrorapiResponse = result;
+        }
+
         const savedCustomer = await Customer.findOneAndUpdate(
             { mobileNumber: cleanedCustomerData.mobile },
             customerDoc,
             { new: true, upsert: true, setDefaultsOnInsert: true }
         );
-
         // Save to LenderErrorApiResponse ONLY if not eligible
-        if (!isEligible) {
-            await LenderErrorApiResponse.create({
-                mobileNumber: cleanedCustomerData.mobile,
-                apiResponse: result,
-            });
-        }
+        // if (!isEligible) {
+        //     await LenderErrorApiResponse.create({
+        //         mobileNumber: cleanedCustomerData.mobile,
+        //         apiResponse: result,
+        //     });
+        // }
 
         return res.status(200).json({
-            success: isEligible,
+            success: shouldProceed,
             message: customerDoc.message,
             data: savedCustomer,
-            eligibleLoanAmount: customerDoc.data.max_amount
+            eligibleLoanAmount: customerDoc.data.max_amount,
+            tenure:customerDoc.tenure
         });
+
 
 
     } catch (error) {

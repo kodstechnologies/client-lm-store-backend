@@ -13,7 +13,7 @@ const orderSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: ['QR Generated', 'Completed', 'Processed', 'On Hold', 'Settled', 'Rejected'],
-    default: 'QR Generated'  // default status 
+
   },
   storeId: {
     type: String,
@@ -30,6 +30,9 @@ const orderSchema = new mongoose.Schema({
   eligibleAmount: {
     type: Number
   },
+  eligibility_expiry_date: {
+    type: Date
+  },
   qrUrl: {
     type: String
   },
@@ -39,10 +42,16 @@ const orderSchema = new mongoose.Schema({
   });
 orderSchema.pre('save', function (next) {
   if (this.isNew && !this.orderId) {
-    const shortNum = Math.floor(10000 + Math.random() * 90000);
-    this.orderId = `LMO_${shortNum}`;
+    const date = new Date();
+    // const formattedDate = date.toISOString().split('T')[0].replace(/-/g, ''); // YYYYMMDD //${formattedDate}
+    const time = date.getTime().toString(); // timestamp in ms as string
+    const shortTime = time.slice(-4); // get last 4 digits only
+    const randomPart = Math.floor(1000 + Math.random() * 9000); // 4-digit random number
+    this.orderId = `LMO_${shortTime}_${randomPart}`;
   }
   next();
 });
+
+
 
 export default mongoose.model('Order', orderSchema);

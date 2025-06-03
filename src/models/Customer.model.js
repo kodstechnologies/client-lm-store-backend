@@ -72,7 +72,11 @@ const customerSchema = new mongoose.Schema({
     },
     storeId: {
         type: mongoose.Schema.Types.ObjectId,
-    }
+    },
+    LenderErrorapiResponse: {
+        type: mongoose.Schema.Types.Mixed,
+        required: true,
+    },
 }, {
     timestamps: true
 });
