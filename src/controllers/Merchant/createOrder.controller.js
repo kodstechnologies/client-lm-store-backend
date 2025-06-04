@@ -1,5 +1,5 @@
 import sendSMSCustomerConsent from "../../services/sendSMSCustomerConsent.js";
-import Joi from 'Joi';
+import Joi from 'joi';
 import jwt from 'jsonwebtoken';
 import EligibilityCheckOtpsModel from '../../models/EligibilityCheckOtps.model.js'
 import { checkEligibilityWithFatakpay } from "../../Utils/fatakpayapi.js";

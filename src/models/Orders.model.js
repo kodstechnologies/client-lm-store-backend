@@ -25,7 +25,8 @@ const orderSchema = new mongoose.Schema({
     type: String
   },
   number: {
-    type: String
+    type: String,
+    unique:true
   },
   eligibleAmount: {
     type: Number
@@ -45,7 +46,7 @@ orderSchema.pre('save', function (next) {
     const date = new Date();
     // const formattedDate = date.toISOString().split('T')[0].replace(/-/g, ''); // YYYYMMDD //${formattedDate}
     const time = date.getTime().toString(); // timestamp in ms as string
-    const shortTime = time.slice(-4); // get last 4 digits only
+    const shortTime = time.slice(); 
     const randomPart = Math.floor(1000 + Math.random() * 9000); // 4-digit random number
     this.orderId = `LMO_${shortTime}_${randomPart}`;
   }

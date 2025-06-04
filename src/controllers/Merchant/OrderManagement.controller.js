@@ -15,8 +15,22 @@ export const createOrderForEligibleCustomer = async (req, res) => {
         }
 
         const { storeId, merchantId } = req.store || {};
-        console.log("🚀 ~ createOrderForEligibleCustomer ~ merchantId:", merchantId)
-        console.log("🚀 ~ createOrderForEligibleCustomer ~ req.store:", req.store)
+        console.log("🚀 ~ createOrderForEligibleCustomer ~ merchantId:", merchantId);
+
+        const now = new Date();
+
+        // Check for existing valid order
+        const existingOrder = await OrdersModel.findOne({
+            number: customer.mobileNumber,
+            eligibility_expiry_date: { $gte: now },
+        });
+
+        if (existingOrder) {
+            return res.status(200).json({
+                message: 'Order already exists for this customer',
+                order: existingOrder,
+            });
+        }
 
         // 🧠 If eligible, proceed as usual
         if (customer.eligibility_status) {
@@ -42,48 +56,37 @@ export const createOrderForEligibleCustomer = async (req, res) => {
             });
         }
 
-        //  If not eligible, try some fallback logic
-        // This simulates a check where some other logic throws the "user already exists" message
-        // In real cases, this would come from a prior call or catch
-        const userAlreadyExists = true; // Simulate your condition check here
+        // Fallback case: if not eligible, but still want to create order (simulate "user already exists" case)
+        const createdAt = new Date();
+        const fallbackExpiry = new Date(createdAt);
+        fallbackExpiry.setDate(fallbackExpiry.getDate() + 30);
 
-        if (!customer.eligibility_status && userAlreadyExists) {
-            const createdAt = new Date();
-            const eligibility_expiry_date = new Date(createdAt);
-            eligibility_expiry_date.setDate(eligibility_expiry_date.getDate() + 30); // add 30 days
+        const fallbackOrder = new OrdersModel({
+            customerId: customer._id,
+            name: `${customer.first_name} ${customer.last_name}`,
+            number: customer.mobileNumber,
+            storeId: storeId || null,
+            chainStoreId: merchantId || null,
+            status: 'QR Generated',
+            eligibility_expiry_date: fallbackExpiry,
+        });
 
-            const fallbackOrder = new OrdersModel({
-                customerId: customer._id,
-                name: `${customer.first_name} ${customer.last_name}`,
-                number: customer.mobileNumber,
-                storeId: storeId || null,
-                chainStoreId: merchantId || null,
-                status: 'QR Generated',
-                eligibility_expiry_date, // calculated 30-day expiry
-            });
+        await fallbackOrder.save();
 
-            await fallbackOrder.save();
+        fallbackOrder.qrUrl = `https://store.littlemoney.co.in/order/${fallbackOrder.orderId}`;
+        await fallbackOrder.save();
 
-            fallbackOrder.qrUrl = `https://store.littlemoney.co.in/order/${fallbackOrder.orderId}`;
-            await fallbackOrder.save();
-
-            console.log("🚀 ~ createOrderForEligibleCustomer ~ fallbackOrder:", fallbackOrder);
-
-            return res.status(201).json({
-                message: 'User already exists, order created anyway',
-                order: fallbackOrder,
-            });
-        }
-
-
-        // If not eligible and not "already exists"
-        return res.status(403).json({ error: 'Customer is not eligible' });
+        return res.status(201).json({
+            message: 'User already exists or fallback triggered, order created',
+            order: fallbackOrder,
+        });
 
     } catch (err) {
         console.error('Order creation error:', err);
         return res.status(500).json({ error: 'Something went wrong' });
     }
 };
+
 
 
 export const fetchAllOrders = async (req, res) => {
@@ -157,18 +160,29 @@ export const updateOrderById = async (req, res) => {
 export const searchOrderByNumber = async (req, res) => {
     try {
         const { number } = req.query;
+        const { storeId } = req.store;
 
         if (!number) {
             return res.status(400).json({ message: 'Phone number is required' });
         }
 
-        const orders = await OrdersModel.find({ number });
-
-        if (orders.length === 0) {
-            return res.status(404).json({ message: 'No orders found with this phone number' });
+        if (!storeId) {
+            return res.status(400).json({ message: 'Store ID is missing from token' });
         }
 
-        res.status(200).json(orders);
+        const now = new Date();
+
+        const orders = await OrdersModel.find({
+            number,
+            storeId,
+            eligibility_expiry_date: { $gte: now },
+        }).sort({ createdAt: -1 });
+
+        if (orders.length === 0) {
+            return res.status(404).json({ message: 'No orders found for this number in this store' });
+        }
+
+        res.status(200).json({ success: true, data: orders });
     } catch (error) {
         console.error('Search Order Error:', error);
         res.status(500).json({ message: 'Server Error' });
@@ -176,11 +190,14 @@ export const searchOrderByNumber = async (req, res) => {
 };
 
 
+
 export const getOrdersByDate = async (req, res) => {
     try {
         const { startDate, endDate } = req.query;
 
         const filter = {};
+        const { storeId } = req.store;
+        console.log("🚀 ~ getOrdersByStoreId ~ storeId:", storeId)
 
         if (startDate && endDate) {
             const start = new Date(startDate);

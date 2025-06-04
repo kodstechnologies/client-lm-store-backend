@@ -15,6 +15,7 @@ const storeSchema = new mongoose.Schema({
   ifscCode: { type: String },
   pinCode: { type: String },
   LoginCount: { type: Number, default: 0 },
+  LastLoginDate: { type: Date },
 
   accountNumber: { type: String },
   IsActive: { type: Boolean, default: true },
