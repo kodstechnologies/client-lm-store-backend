@@ -47,7 +47,7 @@ export const createOrderForEligibleCustomer = async (req, res) => {
 
             await order.save();
 
-            order.qrUrl = `https://store.littlemoney.co.in/order/${order.orderId}`;
+            order.qrUrl = `https://store.littlemoney.co.in/api/order/${order.orderId}`;
             await order.save();
 
             return res.status(201).json({
@@ -73,7 +73,7 @@ export const createOrderForEligibleCustomer = async (req, res) => {
 
         await fallbackOrder.save();
 
-        fallbackOrder.qrUrl = `https://store.littlemoney.co.in/order/${fallbackOrder.orderId}`;
+        fallbackOrder.qrUrl = `https://store.littlemoney.co.in/api/order/${fallbackOrder.orderId}`;
         await fallbackOrder.save();
 
         return res.status(201).json({
