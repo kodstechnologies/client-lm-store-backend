@@ -31,6 +31,9 @@ const orderSchema = new mongoose.Schema({
   eligibleAmount: {
     type: Number
   },
+  max_amount:{
+    type:String
+  },
   eligibility_expiry_date: {
     type: Date
   },

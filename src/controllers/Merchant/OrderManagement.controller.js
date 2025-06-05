@@ -10,6 +10,7 @@ export const createOrderForEligibleCustomer = async (req, res) => {
         }
 
         const customer = await Customer.findById(customerId);
+        console.log("🚀 ~ createOrderForEligibleCustomer ~ customer:", customer)
         if (!customer) {
             return res.status(404).json({ error: 'Customer not found' });
         }
@@ -39,11 +40,13 @@ export const createOrderForEligibleCustomer = async (req, res) => {
                 name: `${customer.first_name} ${customer.last_name}`,
                 number: customer.mobileNumber,
                 eligibleAmount: customer.data?.max_eligibility_amount || null,
+                max_amount: customer.data?.max_amount || null,
                 eligibility_expiry_date: customer.eligibility_expiry_date,
                 storeId: storeId || null,
                 chainStoreId: merchantId || null,
                 status: 'QR Generated',
             });
+                console.log("🚀 ~ createOrderForEligibleCustomer ~ customer.data?.max_amoun:", customer.data?.max_amoun)
 
             await order.save();
 
