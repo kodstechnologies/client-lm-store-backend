@@ -9,6 +9,8 @@ const router = express.Router();
 router.post("/mobile-verification", mobileVerify);
 router.post("/otp-verify", verifyOtp)
 router.get("/order/:orderId", (req, res) => {
+    // const { orderId } = req.params;
+    // console.log("Redirecting order:", orderId);
     return res.redirect(
         "https://web.fatakpay.com/authentication/login?utm_source=556_JQG70&utm_medium="
     );

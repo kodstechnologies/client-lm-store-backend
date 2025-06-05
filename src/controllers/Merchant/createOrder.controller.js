@@ -30,7 +30,7 @@ export const sendOtpEligibilityCheck = async (req, res) => {
                 { upsert: true, new: true }
             );
 
-            console.log("Saved OTP doc:", otpDoc);  // ✅ Add this line
+            console.log("Saved OTP doc:", otpDoc);  // Add this line
 
 
             console.log(" OTP record saved/updated:", otpDoc);

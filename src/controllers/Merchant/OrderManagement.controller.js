@@ -1,5 +1,6 @@
 import { Customer } from "../../models/Customer.model.js";
 import OrdersModel from "../../models/Orders.model.js";
+const REDIRECTION_URL = process.env.REDIRECTION_URL
 
 export const createOrderForEligibleCustomer = async (req, res) => {
     try {
@@ -10,78 +11,59 @@ export const createOrderForEligibleCustomer = async (req, res) => {
         }
 
         const customer = await Customer.findById(customerId);
-        console.log("🚀 ~ createOrderForEligibleCustomer ~ customer:", customer)
         if (!customer) {
             return res.status(404).json({ error: 'Customer not found' });
         }
 
         const { storeId, merchantId } = req.store || {};
-        console.log("🚀 ~ createOrderForEligibleCustomer ~ merchantId:", merchantId);
-
         const now = new Date();
 
-        // Check for existing valid order
-        const existingOrder = await OrdersModel.findOne({
+        // Try to find an existing valid order
+        let order = await OrdersModel.findOne({
             number: customer.mobileNumber,
             eligibility_expiry_date: { $gte: now },
         });
 
-        if (existingOrder) {
-            return res.status(200).json({
-                message: 'Order already exists for this customer',
-                order: existingOrder,
-            });
-        }
+        // Generate new unique orderId (for updating)
+        const newOrderId = `LMO_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
+        const newQrUrl = `${REDIRECTION_URL}/order/${newOrderId}`;
+        const expiryDate = customer.eligibility_expiry_date || new Date(now.setDate(now.getDate() + 30));
 
-        // 🧠 If eligible, proceed as usual
-        if (customer.eligibility_status) {
-            const order = new OrdersModel({
+        if (order) {
+            //  Update existing order instead of creating new one
+            order.orderId = newOrderId;
+            order.qrUrl = newQrUrl;
+            order.eligibleAmount = customer.data?.max_eligibility_amount || null;
+            order.max_amount = customer.data?.max_amount || null;
+            order.eligibility_expiry_date = expiryDate;
+            order.status = 'QR Generated';
+            order.name = `${customer.first_name} ${customer.last_name}`;
+            order.storeId = storeId || null;
+            order.chainStoreId = merchantId || null;
+
+            await order.save();
+        } else {
+            //  Create new order if none exists
+            order = new OrdersModel({
                 customerId: customer._id,
                 name: `${customer.first_name} ${customer.last_name}`,
                 number: customer.mobileNumber,
                 eligibleAmount: customer.data?.max_eligibility_amount || null,
                 max_amount: customer.data?.max_amount || null,
-                eligibility_expiry_date: customer.eligibility_expiry_date,
+                eligibility_expiry_date: expiryDate,
                 storeId: storeId || null,
                 chainStoreId: merchantId || null,
+                orderId: newOrderId,
+                qrUrl: newQrUrl,
                 status: 'QR Generated',
             });
-                console.log("🚀 ~ createOrderForEligibleCustomer ~ customer.data?.max_amoun:", customer.data?.max_amoun)
 
             await order.save();
-
-            order.qrUrl = `https://store.littlemoney.co.in/api/order/${order.orderId}`;
-            await order.save();
-
-            return res.status(201).json({
-                message: 'Order created successfully',
-                order,
-            });
         }
 
-        // Fallback case: if not eligible, but still want to create order (simulate "user already exists" case)
-        const createdAt = new Date();
-        const fallbackExpiry = new Date(createdAt);
-        fallbackExpiry.setDate(fallbackExpiry.getDate() + 30);
-
-        const fallbackOrder = new OrdersModel({
-            customerId: customer._id,
-            name: `${customer.first_name} ${customer.last_name}`,
-            number: customer.mobileNumber,
-            storeId: storeId || null,
-            chainStoreId: merchantId || null,
-            status: 'QR Generated',
-            eligibility_expiry_date: fallbackExpiry,
-        });
-
-        await fallbackOrder.save();
-
-        fallbackOrder.qrUrl = `https://store.littlemoney.co.in/api/order/${fallbackOrder.orderId}`;
-        await fallbackOrder.save();
-
-        return res.status(201).json({
-            message: 'User already exists or fallback triggered, order created',
-            order: fallbackOrder,
+        return res.status(200).json({
+            message: 'Order created or updated successfully',
+            order,
         });
 
     } catch (err) {
@@ -89,6 +71,7 @@ export const createOrderForEligibleCustomer = async (req, res) => {
         return res.status(500).json({ error: 'Something went wrong' });
     }
 };
+
 
 
 
