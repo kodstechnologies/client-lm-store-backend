@@ -13,7 +13,6 @@ const orderSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: ['QR Generated', 'Completed', 'Processed', 'On Hold', 'Settled', 'Rejected'],
-
   },
   storeId: {
     type: String,

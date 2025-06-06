@@ -186,7 +186,7 @@ export const verifyOtp = async (req, res) => {
         gstin: store.GSTIN,
         affiliateId: store.AffiliateId,
         accountId: store.AccountId,
-        ChainStoreId: store.ChainStoreId?._id,
+        merchantId: store.ChainStoreId?._id || store.ChainStoreId,
         StoreCode: store.StoreCode,
         pinCode: store.pinCode,
         ifscCode: store.ifscCode,
@@ -194,6 +194,8 @@ export const verifyOtp = async (req, res) => {
       },
       process.env.JWT_SECRET
     );
+    // console.log("🚀 ~ verifyOtp ~ ChainStoreId:", ChainStoreId)
+    console.log("🚀 ~ verifyOtp ~ storeToken:", storeToken)
 
     return res.status(200).json({
       success: true,
@@ -210,6 +212,7 @@ export const verifyOtp = async (req, res) => {
       StoreCode: store.StoreCode,
       lastLoginDate: store.LastLoginDate,
       loginCount: store.LoginCount,
+      // chainStoreId:store.
     });
   } catch (err) {
     console.error("Server error:", err);

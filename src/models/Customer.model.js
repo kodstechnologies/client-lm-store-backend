@@ -4,7 +4,7 @@ const customerSchema = new mongoose.Schema({
     mobileNumber: {
         type: String,
         required: true,
-        unique: true,
+        // unique: true,
         trim: true
     },
     first_name: {
@@ -28,7 +28,7 @@ const customerSchema = new mongoose.Schema({
     pan: {
         type: String,
         required: true,
-        unique: true,
+        // unique: true,
         uppercase: true,
         match: /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/
     },
@@ -75,8 +75,11 @@ const customerSchema = new mongoose.Schema({
     },
     LenderErrorapiResponse: {
         type: mongoose.Schema.Types.Mixed,
-        required: true,
+        // required: true,
     },
+    status:{
+        type:String
+    }
 }, {
     timestamps: true
 });

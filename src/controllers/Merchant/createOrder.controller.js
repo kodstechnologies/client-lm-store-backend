@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import EligibilityCheckOtpsModel from '../../models/EligibilityCheckOtps.model.js'
 import { checkEligibilityWithFatakpay } from "../../Utils/fatakpayapi.js";
 import { Customer } from "../../models/Customer.model.js";
+import OrdersModel from "../../models/Orders.model.js";
 
 export const sendOtpEligibilityCheck = async (req, res) => {
     const mobileNumberSchema = Joi.object({
@@ -71,12 +72,34 @@ export const verifyOtpEligibilityCheck = async (req, res) => {
             return res.status(400).json({ message: 'OTP expired' });
         }
 
+       
+
         if (record.otp === otp) {
             // ✅ OTP matched — now check in Customer DB
             const customer = await Customer.findOne({ mobileNumber });
 
-            console.log("🚀 ~ verifyOtpEligibilityCheck ~ customer:", customer)
+            console.log("🚀 ~ verifyOtpEligibilityCheck ~ customer:", customer);
+
             if (customer) {
+                // 👇 NEW: Check for 'Completed' order
+                const completedOrder = await OrdersModel.findOne({
+                    customerId: customer._id,
+                    status: "Completed"
+                });
+                // console.log("🚀 ~ verifyOtpEligibilityCheck ~ completedOrder:", completedOrder)
+
+                if (completedOrder) {
+                    //  Treat as new user
+                    return res.status(200).json({
+                        success: true,
+                        message: "OTP verified successfully (treated as new customer due to completed order)",
+                        isNewCustomer: true,
+                        status:completedOrder.status,
+                        Order:completedOrder
+                    });
+                }
+
+                //  Continue with eligibility logic
                 const isEligible = customer.eligibility_status === true;
 
                 if (isEligible) {
@@ -94,7 +117,7 @@ export const verifyOtpEligibilityCheck = async (req, res) => {
                         success: true,
                         message: "Customer eligible",
                         max_eligibility_amount: customer.data?.max_eligibility_amount || 0,
-                        max_amount:customer.data?.max_amount,
+                        max_amount: customer.data?.max_amount,
                         customerId: customer._id
                     });
                 } else {
@@ -104,7 +127,7 @@ export const verifyOtpEligibilityCheck = async (req, res) => {
                             message: "Customer eligible with (User already exists in the system.)",
                             customerId: customer._id,
                             max_eligibility_amount: customer.data?.max_eligibility_amount || 3000,
-                            max_amount:customer.data?.max_amount||10000,
+                            max_amount: customer.data?.max_amount || 10000,
                             tenure: customer.data?.tenure || 30
                         });
                     }
@@ -115,6 +138,8 @@ export const verifyOtpEligibilityCheck = async (req, res) => {
                     });
                 }
             }
+
+            // If no customer found
             return res.status(200).json({
                 success: true,
                 message: "OTP verified successfully (new customer)",
@@ -123,6 +148,7 @@ export const verifyOtpEligibilityCheck = async (req, res) => {
         } else {
             return res.status(400).json({ message: "Invalid OTP, please check again." });
         }
+
 
     } catch (err) {
         console.error("Server error:", err);
@@ -150,13 +176,98 @@ export const verifyOtpEligibilityCheck = async (req, res) => {
 //     }
 // };
 
+// export const checkCustomerEligibility = async (req, res) => {
+//     const customerData = req.body;
+//     const { storeId, merchantId } = req.store;
+
+//     try {
+//         const { dob_day, dob_month, dob_year, mobileNumber, ...rest } = customerData;
+
+//         const cleanedCustomerData = {
+//             ...rest,
+//             mobile: mobileNumber,
+//             consent: true,
+//             consent_timestamp: new Date(),
+//         };
+
+//         const result = await checkEligibilityWithFatakpay(cleanedCustomerData);
+
+//         const isEligible = result?.data?.eligibility_status === true;
+//         const userAlreadyExists = result?.message === "User already exists in the system.";
+//         const shouldProceed = isEligible || userAlreadyExists;
+
+//         const baseCustomerDoc = {
+//             mobileNumber: cleanedCustomerData.mobile,
+//             first_name: cleanedCustomerData.first_name,
+//             last_name: cleanedCustomerData.last_name,
+//             employment_type_id: cleanedCustomerData.employment_type_id || "Salaried",
+//             eligibility_status: isEligible,
+//             pan: cleanedCustomerData.pan,
+//             dob: cleanedCustomerData.dob,
+//             pincode: cleanedCustomerData.pincode,
+//             income: cleanedCustomerData.income,
+//             consent: cleanedCustomerData.consent,
+//             consent_timestamp: cleanedCustomerData.consent_timestamp,
+//             message: result.message || '',
+//             eligibility_expiry_date: result?.data?.eligibility_expiry_date,
+//             max_eligibility_amount: result?.data?.max_eligibility_amount,
+//             tenure: result?.data?.tenure || undefined,
+//             data: result?.data || result,
+//             ChainStoreId: merchantId,
+//             storeId: storeId,
+//         };
+
+//         if (!isEligible) {
+//             baseCustomerDoc.LenderErrorapiResponse = result;
+//         }
+
+//         const existingCustomer = await Customer.findOne({ mobileNumber: cleanedCustomerData.mobile });
+
+//         let savedCustomer;
+
+//         if (existingCustomer) {
+//             const hasCompletedOrder = await OrdersModel.findOne({
+//                 customerId: existingCustomer._id,
+//                 status: 'Completed',
+//             });
+
+//             if (hasCompletedOrder) {
+//                 // ✅ Create a new customer document
+//                 const newCustomer = new Customer(baseCustomerDoc);
+//                 savedCustomer = await newCustomer.save();
+//             } else {
+//                 // ✅ Update the existing customer document
+//                 savedCustomer = await Customer.findByIdAndUpdate(
+//                     existingCustomer._id,
+//                     baseCustomerDoc,
+//                     { new: true }
+//                 );
+//             }
+//         } else {
+//             // No customer exists — create new
+//             const newCustomer = new Customer(baseCustomerDoc);
+//             savedCustomer = await newCustomer.save();
+//         }
+
+//         return res.status(200).json({
+//             success: shouldProceed,
+//             message: baseCustomerDoc.message,
+//             data: savedCustomer,
+//             eligibleLoanAmount: baseCustomerDoc.data?.max_amount,
+//             tenure: baseCustomerDoc.tenure
+//         });
+
+//     } catch (error) {
+//         console.error(error);
+//         return res.status(500).json({
+//             success: false,
+//             message: error.message || "Eligibility check failed",
+//         });
+//     }
+// };
 export const checkCustomerEligibility = async (req, res) => {
     const customerData = req.body;
-
-    // Now storeId and merchantId come from the middleware
     const { storeId, merchantId } = req.store;
-    console.log("🚀 ~ checkCustomerEligibility ~ storeId:", storeId)
-    console.log("🚀 ~ checkCustomerEligibility ~ merchantId:", merchantId)
 
     try {
         const { dob_day, dob_month, dob_year, mobileNumber, ...rest } = customerData;
@@ -174,7 +285,7 @@ export const checkCustomerEligibility = async (req, res) => {
         const userAlreadyExists = result?.message === "User already exists in the system.";
         const shouldProceed = isEligible || userAlreadyExists;
 
-        const customerDoc = {
+        const baseCustomerDoc = {
             mobileNumber: cleanedCustomerData.mobile,
             first_name: cleanedCustomerData.first_name,
             last_name: cleanedCustomerData.last_name,
@@ -194,35 +305,47 @@ export const checkCustomerEligibility = async (req, res) => {
             ChainStoreId: merchantId,
             storeId: storeId,
         };
-        console.log("🚀 ~ checkCustomerEligibility ~ customerDoc.ChainStoreId:", customerDoc.ChainStoreId)
-        console.log("🚀 ~ checkCustomerEligibility ~ customerDoc.max_eligibility_amount:", customerDoc.max_eligibility_amount)
 
         if (!isEligible) {
-            customerDoc.LenderErrorapiResponse = result;
+            baseCustomerDoc.LenderErrorapiResponse = result;
         }
+        
 
-        const savedCustomer = await Customer.findOneAndUpdate(
-            { mobileNumber: cleanedCustomerData.mobile },
-            customerDoc,
-            { new: true, upsert: true, setDefaultsOnInsert: true }
-        );
-        // Save to LenderErrorApiResponse ONLY if not eligible
-        // if (!isEligible) {
-        //     await LenderErrorApiResponse.create({
-        //         mobileNumber: cleanedCustomerData.mobile,
-        //         apiResponse: result,
-        //     });
-        // }
+        const existingCustomer = await Customer.findOne({ mobileNumber: cleanedCustomerData.mobile });
+
+        let savedCustomer;
+
+        if (existingCustomer) {
+            const hasCompletedOrder = await OrdersModel.findOne({
+                customerId: existingCustomer._id,
+                status: 'Completed',
+            });
+
+            if (hasCompletedOrder) {
+                //  Create a new customer document
+                const newCustomer = new Customer(baseCustomerDoc);
+                savedCustomer = await newCustomer.save();
+            } else {
+                //  Update the existing customer document
+                savedCustomer = await Customer.findByIdAndUpdate(
+                    existingCustomer._id,
+                    baseCustomerDoc,
+                    { new: true }
+                );
+            }
+        } else {
+            // No customer exists — create new
+            const newCustomer = new Customer(baseCustomerDoc);
+            savedCustomer = await newCustomer.save();
+        }
 
         return res.status(200).json({
             success: shouldProceed,
-            message: customerDoc.message,
+            message: baseCustomerDoc.message,
             data: savedCustomer,
-            eligibleLoanAmount: customerDoc.data.max_amount,
-            tenure:customerDoc.tenure
+            eligibleLoanAmount: baseCustomerDoc.data?.max_amount,
+            tenure: baseCustomerDoc.tenure
         });
-
-
 
     } catch (error) {
         console.error(error);
@@ -231,6 +354,6 @@ export const checkCustomerEligibility = async (req, res) => {
             message: error.message || "Eligibility check failed",
         });
     }
-
 };
+
 

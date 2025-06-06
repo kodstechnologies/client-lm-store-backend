@@ -23,12 +23,12 @@ export const authenticateToken = (req, res, next) => {
             groupId: decoded.groupId,
             affiliateId: decoded.affiliateId,
             accountId: decoded.accountId,
-            merchantId: decoded.ChainStoreId || decoded.ChainStoreId,
+            merchantId: decoded.merchantId,
             pinCode: decoded.pinCode,
             ifscCode: decoded.ifscCode,
             isActive: decoded.isActive,
-            // you can add more fields if included in JWT
         };
+        console.log("🚀 ~ authenticateToken ~ req.store.decoded:", decoded)
 
         next();
     } catch (error) {
