@@ -189,21 +189,27 @@ export const createOrderForEligibleCustomer = async (req, res) => {
 
         const { storeId, merchantId } = req.store || {};
         console.log("🚀 ~ createOrderForEligibleCustomer ~ merchantId:", merchantId);
+        console.log("🚀 ~ createOrderForEligibleCustomer ~ req.store:", req.store)
 
         const now = new Date();
         const newOrderId = `LMO_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
         const newQrUrl = `${REDIRECTION_URL}/order/${newOrderId}`;
         const expiryDate = customer.eligibility_expiry_date || new Date(now.setDate(now.getDate() + 30));
 
-        // ✅ Check for existing 'QR Generated' order
+        //  Check for existing 'QR Generated' order
         let existingOrder = await OrdersModel.findOne({
-            number: customer.mobileNumber,
+            number: String(customer.mobileNumber),
             status: 'QR Generated',
-            eligibility_expiry_date: { $gte: now },
+            eligibility_expiry_date: { $gte: new Date(new Date().toISOString()) },
         });
 
+        console.log("🚀 ~ createOrderForEligibleCustomer ~ existingOrder:", existingOrder)
+        console.log("Now:", now.toISOString());
+        console.log("Order Expiry:", existingOrder?.eligibility_expiry_date?.toISOString());
+
+
         if (existingOrder) {
-            // ✅ Update the existing order
+            // Update the existing order
             existingOrder.orderId = newOrderId;
             existingOrder.qrUrl = newQrUrl;
             existingOrder.eligibleAmount = customer.data?.max_eligibility_amount || null;
@@ -215,15 +221,17 @@ export const createOrderForEligibleCustomer = async (req, res) => {
 
             await existingOrder.save();
 
-            await Customer.findByIdAndUpdate(customer._id,{ status: 'QR Generated' });4
+            await Customer.findByIdAndUpdate(customer._id, { status: 'QR Generated' });
 
             return res.status(200).json({
                 message: 'Existing QR order updated successfully',
                 order: existingOrder,
+                customerId: customer._id,
+
             });
         }
 
-        // ✅ No 'QR Generated' order, so create new
+        // No 'QR Generated' order, so create new
         const newOrder = new OrdersModel({
             customerId: customer._id,
             name: `${customer.first_name} ${customer.last_name}`,
@@ -412,7 +420,7 @@ export const getOrdersByStoreId = async (req, res) => {
         const orders = await OrdersModel.find({
             storeId: storeId,
             eligibility_expiry_date: { $gte: now }
-        }).sort({ createdAt: -1 }); // -1 for descending order
+        }).sort({ updatedAt: -1 }); // -1 for descending order
         console.log("🚀 ~ getOrdersByStoreId ~ orders:", orders)
 
         return res.status(200).json({
@@ -463,7 +471,6 @@ export const searchOrderByNumber = async (req, res) => {
         res.status(500).json({ message: 'Server Error' });
     }
 };
-
 
 
 export const getOrdersByDate = async (req, res) => {

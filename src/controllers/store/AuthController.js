@@ -155,14 +155,14 @@ export const verifyOtp = async (req, res) => {
       return res.status(400).json({ message: "Invalid OTP, please check again." });
     }
 
-    //  Check only Store
-    const store = await Store.findOne({ Phone: mobileNumber }).populate('ChainStoreId');
+
+    const store = await Store.findOne({ Phone: mobileNumber }).populate({ path: 'ChainStoreId' });
 
     console.log("🚀 ~ verifyOtp ~ store:", store)
     if (!store) {
       return res.status(400).json({ message: 'Store not found' });
     }
-
+    const merchantId = store.ChainStoreId && store.ChainStoreId._id ? store.ChainStoreId._id : store.ChainStoreId;
     // //  Check Store status
     // if (!store.IsActive) {
     //   return res.status(403).json({
@@ -186,7 +186,7 @@ export const verifyOtp = async (req, res) => {
         gstin: store.GSTIN,
         affiliateId: store.AffiliateId,
         accountId: store.AccountId,
-        merchantId: store.ChainStoreId?._id || store.ChainStoreId,
+        merchantId,
         StoreCode: store.StoreCode,
         pinCode: store.pinCode,
         ifscCode: store.ifscCode,

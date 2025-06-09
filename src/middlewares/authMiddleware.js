@@ -28,7 +28,7 @@ export const authenticateToken = (req, res, next) => {
             ifscCode: decoded.ifscCode,
             isActive: decoded.isActive,
         };
-        console.log("🚀 ~ authenticateToken ~ req.store.decoded:", decoded)
+        console.log("Decoded Token:", decoded);
 
         next();
     } catch (error) {

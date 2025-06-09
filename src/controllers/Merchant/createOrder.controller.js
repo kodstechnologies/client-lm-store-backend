@@ -5,7 +5,7 @@ import EligibilityCheckOtpsModel from '../../models/EligibilityCheckOtps.model.j
 import { checkEligibilityWithFatakpay } from "../../Utils/fatakpayapi.js";
 import { Customer } from "../../models/Customer.model.js";
 import OrdersModel from "../../models/Orders.model.js";
-
+const REDIRECTION_URL = process.env.REDIRECTION_URL
 export const sendOtpEligibilityCheck = async (req, res) => {
     const mobileNumberSchema = Joi.object({
         mobileNumber: Joi.string().required(),
@@ -72,7 +72,7 @@ export const verifyOtpEligibilityCheck = async (req, res) => {
             return res.status(400).json({ message: 'OTP expired' });
         }
 
-       
+
 
         if (record.otp === otp) {
             // ✅ OTP matched — now check in Customer DB
@@ -81,25 +81,50 @@ export const verifyOtpEligibilityCheck = async (req, res) => {
             console.log("🚀 ~ verifyOtpEligibilityCheck ~ customer:", customer);
 
             if (customer) {
-                // 👇 NEW: Check for 'Completed' order
-                const completedOrder = await OrdersModel.findOne({
-                    customerId: customer._id,
-                    status: "Completed"
-                });
-                // console.log("🚀 ~ verifyOtpEligibilityCheck ~ completedOrder:", completedOrder)
+                // ✅ 1. Check for QR Generated order first
+                let QRGeneratedOrder = await OrdersModel.findOne({
+                    number: mobileNumber,
+                    status: "QR Generated"
+                }).sort({ createdAt: -1 }); // Get latest
 
-                if (completedOrder) {
-                    //  Treat as new user
+                if (QRGeneratedOrder) {
+                    const newOrderId = `LMO_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
+                    const newQrUrl = `${REDIRECTION_URL}/order/${newOrderId}`;
+
+                    // ✅ Update the order
+                    QRGeneratedOrder.orderId = newOrderId;
+                    QRGeneratedOrder.qrUrl = newQrUrl;
+                    await QRGeneratedOrder.save();
+
                     return res.status(200).json({
                         success: true,
-                        message: "OTP verified successfully (treated as new customer due to completed order)",
-                        isNewCustomer: true,
-                        status:completedOrder.status,
-                        Order:completedOrder
+                        message: "OTP verified successfully (existing customer with updated QR Generated order)",
+                        isNewCustomer: false,
+                  
+                        status: QRGeneratedOrder.status,
+                        Order: QRGeneratedOrder,
+                        qrUrl: newQrUrl
                     });
                 }
 
-                //  Continue with eligibility logic
+                // ✅ 2. Check for Completed order
+                const completedOrder = await OrdersModel.findOne({
+                    customerId: customer._id,
+                    status: "Completed"
+                }).sort({ createdAt: -1 });
+
+                if (completedOrder) {
+                    return res.status(200).json({
+                        success: true,
+                        message: "OTP verified successfully (returning customer with completed order)",
+                        isNewCustomer: false,
+                        status: completedOrder.status,
+                        Order: completedOrder,
+                        qrUrl: completedOrder.qrUrl
+                    });
+                }
+
+                // ✅ 3. Continue with eligibility check...
                 const isEligible = customer.eligibility_status === true;
 
                 if (isEligible) {
@@ -118,7 +143,9 @@ export const verifyOtpEligibilityCheck = async (req, res) => {
                         message: "Customer eligible",
                         max_eligibility_amount: customer.data?.max_eligibility_amount || 0,
                         max_amount: customer.data?.max_amount,
-                        customerId: customer._id
+                        tenure: customer.data?.tenure || 12,
+                        customerId: customer._id,
+                        status: customer.status
                     });
                 } else {
                     if (customer.message === "User already exists in the system.") {
@@ -139,7 +166,8 @@ export const verifyOtpEligibilityCheck = async (req, res) => {
                 }
             }
 
-            // If no customer found
+
+
             return res.status(200).json({
                 success: true,
                 message: "OTP verified successfully (new customer)",
@@ -309,7 +337,7 @@ export const checkCustomerEligibility = async (req, res) => {
         if (!isEligible) {
             baseCustomerDoc.LenderErrorapiResponse = result;
         }
-        
+
 
         const existingCustomer = await Customer.findOne({ mobileNumber: cleanedCustomerData.mobile });
 
@@ -333,7 +361,8 @@ export const checkCustomerEligibility = async (req, res) => {
                     { new: true }
                 );
             }
-        } else {
+        }
+        else {
             // No customer exists — create new
             const newCustomer = new Customer(baseCustomerDoc);
             savedCustomer = await newCustomer.save();
