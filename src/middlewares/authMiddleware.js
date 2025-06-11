@@ -17,15 +17,7 @@ export const authenticateToken = (req, res, next) => {
             storeId: decoded.storeId,
             phoneNumber: decoded.phoneNumber,
             storeName: decoded.storeName,
-            email: decoded.email,
-            state: decoded.state,
-            gstin: decoded.gstin,
-            groupId: decoded.groupId,
-            affiliateId: decoded.affiliateId,
-            accountId: decoded.accountId,
             merchantId: decoded.merchantId,
-            pinCode: decoded.pinCode,
-            ifscCode: decoded.ifscCode,
             isActive: decoded.isActive,
         };
         console.log("Decoded Token:", decoded);

@@ -91,7 +91,7 @@ export const verifyOtpEligibilityCheck = async (req, res) => {
                     const newOrderId = `LMO_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
                     const newQrUrl = `${REDIRECTION_URL}/order/${newOrderId}`;
 
-                    // ✅ Update the order
+                    //  Update the order
                     QRGeneratedOrder.orderId = newOrderId;
                     QRGeneratedOrder.qrUrl = newQrUrl;
                     await QRGeneratedOrder.save();
@@ -100,14 +100,14 @@ export const verifyOtpEligibilityCheck = async (req, res) => {
                         success: true,
                         message: "OTP verified successfully (existing customer with updated QR Generated order)",
                         isNewCustomer: false,
-                  
+
                         status: QRGeneratedOrder.status,
                         Order: QRGeneratedOrder,
                         qrUrl: newQrUrl
                     });
                 }
 
-                // ✅ 2. Check for Completed order
+                // 2. Check for Completed order
                 const completedOrder = await OrdersModel.findOne({
                     customerId: customer._id,
                     status: "Completed"
@@ -160,6 +160,8 @@ export const verifyOtpEligibilityCheck = async (req, res) => {
                     }
 
                     return res.status(200).json({
+                        customerDetails:customer,
+                        customerId: customer._id,
                         success: false,
                         message: "Customer not eligible",
                     });
@@ -308,8 +310,10 @@ export const checkCustomerEligibility = async (req, res) => {
         };
 
         const result = await checkEligibilityWithFatakpay(cleanedCustomerData);
+        console.log("🚀 ~ checkCustomerEligibility ~ result:", result)
 
-        const isEligible = result?.data?.eligibility_status === true;
+        const isEligible = result?.data?.eligibility_status === true || result.eligibility_status === true;
+        console.log("🚀 ~ checkCustomerEligibility ~ isEligible:", isEligible)
         const userAlreadyExists = result?.message === "User already exists in the system.";
         const shouldProceed = isEligible || userAlreadyExists;
 
@@ -384,5 +388,3 @@ export const checkCustomerEligibility = async (req, res) => {
         });
     }
 };
-
-

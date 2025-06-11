@@ -12,7 +12,7 @@ const PORT = process.env.PORT;
 app.use(cors());
 app.use(express.json())
 app.use("/api", MerchantRoutes);
-// app.listen(PORT, console.log(`Backend is running on port:${PORT}`));
+app.listen(PORT, console.log(`Backend is running on port:${PORT}`));
 
 const startServer = async () => {
     try {

@@ -201,6 +201,7 @@ export const createOrderForEligibleCustomer = async (req, res) => {
             number: String(customer.mobileNumber),
             status: 'QR Generated',
             eligibility_expiry_date: { $gte: new Date(new Date().toISOString()) },
+            
         });
 
         console.log("🚀 ~ createOrderForEligibleCustomer ~ existingOrder:", existingOrder)
@@ -259,97 +260,6 @@ export const createOrderForEligibleCustomer = async (req, res) => {
         return res.status(500).json({ error: 'Something went wrong' });
     }
 };
-// export const createOrderForEligibleCustomer = async (req, res) => {
-//     try {
-//         const { customerId } = req.body;
-
-//         if (!customerId) {
-//             return res.status(400).json({ error: 'Customer ID is required' });
-//         }
-
-//         const customer = await Customer.findById(customerId);
-//         if (!customer) {
-//             return res.status(404).json({ error: 'Customer not found' });
-//         }
-
-//         const { storeId, merchantId } = req.store || {};
-//         console.log("🚀 ~ createOrderForEligibleCustomer ~ merchantId:", merchantId);
-
-//         const now = new Date();
-
-//         // Generate new orderId and QR URL
-//         const newOrderId = `LMO_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
-//         const newQrUrl = `${REDIRECTION_URL}/order/${newOrderId}`;
-
-//         // Use existing expiry date or set 30 days from now without mutating `now`
-//         const expiryDate = customer.eligibility_expiry_date
-//             ? new Date(customer.eligibility_expiry_date)
-//             : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days ahead
-
-//         // Find existing order with status 'QR Generated' for this customer number
-//         let existingOrder = await OrdersModel.findOne({
-//             number: customer.mobileNumber,
-//             status: 'QR Generated',
-//             // Removed eligibility_expiry_date filter to ensure existing order is found
-//         });
-
-//         if (existingOrder) {
-//             // Update the existing order
-//             existingOrder.orderId = newOrderId;
-//             existingOrder.qrUrl = newQrUrl;
-//             existingOrder.eligibleAmount = customer.data?.max_eligibility_amount ?? null;
-
-//             // Convert max_amount to number if possible, else null
-//             const maxAmountRaw = customer.data?.max_amount;
-//             existingOrder.max_amount = maxAmountRaw ? Number(maxAmountRaw) || null : null;
-
-//             existingOrder.eligibility_expiry_date = expiryDate;
-//             existingOrder.name = `${customer.first_name} ${customer.last_name}`;
-//             existingOrder.storeId = storeId || null;
-//             existingOrder.chainStoreId = merchantId || null;
-
-//             await existingOrder.save();
-
-//             await Customer.findByIdAndUpdate(customer._id, { status: 'QR Generated' });
-
-//             return res.status(200).json({
-//                 message: 'Existing QR order updated successfully',
-//                 order: existingOrder,
-//             });
-//         }
-
-//         // No existing QR Generated order — create a new one
-//         const maxAmountRaw = customer.data?.max_amount;
-//         const maxAmount = maxAmountRaw ? Number(maxAmountRaw) || null : null;
-
-//         const newOrder = new OrdersModel({
-//             customerId: customer._id,
-//             name: `${customer.first_name} ${customer.last_name}`,
-//             number: customer.mobileNumber,
-//             eligibleAmount: customer.data?.max_eligibility_amount ?? null,
-//             max_amount: maxAmount,
-//             eligibility_expiry_date: expiryDate,
-//             storeId: storeId || null,
-//             chainStoreId: merchantId || null,
-//             orderId: newOrderId,
-//             qrUrl: newQrUrl,
-//             status: 'QR Generated',
-//         });
-
-//         await newOrder.save();
-//         await Customer.findByIdAndUpdate(customer._id, { status: 'QR Generated' });
-
-//         return res.status(200).json({
-//             message: 'New QR order created successfully',
-//             order: newOrder,
-//         });
-
-//     } catch (err) {
-//         console.error('Order creation error:', err);
-//         return res.status(500).json({ error: 'Something went wrong' });
-//     }
-// };
-
 
 
 export const updateOrderById = async (req, res) => {
@@ -438,7 +348,45 @@ export const getOrdersByStoreId = async (req, res) => {
     }
 };
 
+export const fetchCustomerDetailsByStoreId = async (req, res) => {
+    try {
+        const { storeId } = req.store; // from token middleware
+        console.log("🚀 ~ fetchCustomerDetailsByStoreId ~ storeId:", storeId)
+        const { id } = req.params;     // customer ID from URL
+        console.log("🚀 ~ fetchCustomerDetailsByStoreId ~ id:", id)
 
+        if (!id) {
+            return res.status(400).json({
+                success: false,
+                message: "Customer ID is required",
+            });
+        }
+
+        const customer = await Customer.find({ _id: id, storeId })
+
+        console.log("🚀 ~ fetchCustomerDetailsByStoreId ~ customer:", customer)
+
+
+        if (!customer) {
+            return res.status(404).json({
+                success: false,
+                message: "Customer not found or does not belong to this store",
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            data: customer,
+        });
+
+    } catch (error) {
+        console.error("Error fetching customer:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Error fetching customer details",
+        });
+    }
+}
 
 export const searchOrderByNumber = async (req, res) => {
     try {
@@ -505,4 +453,3 @@ export const getOrdersByDate = async (req, res) => {
         res.status(500).json({ message: "Server error" });
     }
 };
-
