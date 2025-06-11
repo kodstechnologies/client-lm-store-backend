@@ -201,13 +201,8 @@ export const createOrderForEligibleCustomer = async (req, res) => {
             number: String(customer.mobileNumber),
             status: 'QR Generated',
             eligibility_expiry_date: { $gte: new Date(new Date().toISOString()) },
-             storeId:storeId  
+            storeId:storeId  
         });
-
-        console.log("🚀 ~ createOrderForEligibleCustomer ~ existingOrder:", existingOrder)
-        console.log("Now:", now.toISOString());
-        console.log("Order Expiry:", existingOrder?.eligibility_expiry_date?.toISOString());
-
 
         if (existingOrder) {
             // Update the existing order
