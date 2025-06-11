@@ -362,7 +362,7 @@ export const fetchCustomerDetailsByStoreId = async (req, res) => {
             });
         }
 
-        const customer = await Customer.find({ _id: id, storeId })
+        const customer = await Customer.find({ _id: id})
 
         console.log("🚀 ~ fetchCustomerDetailsByStoreId ~ customer:", customer)
 

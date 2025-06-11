@@ -22,9 +22,13 @@ const customerSchema = new mongoose.Schema({
         default: 'Salaried',
         enum: ['Salaried'] // restricts it to only 'Salaried'
     },
-    eligibility_status: {
-        type: Boolean
-    },
+    eligibility_status: [
+        {
+            storeId: { type: String},
+            isEligible: { type: Boolean }
+        }
+    ]
+,
     pan: {
         type: String,
         required: true,
@@ -77,8 +81,8 @@ const customerSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.Mixed,
         // required: true,
     },
-    status:{
-        type:String
+    status: {
+        type: String
     }
 }, {
     timestamps: true
