@@ -358,66 +358,68 @@ export const checkCustomerEligibility = async (req, res) => {
 
         let savedCustomer;
 
-if (existingCustomer) {
-    const hasCompletedOrder = await OrdersModel.findOne({
-        customerId: existingCustomer._id,
-        status: 'Completed',
-        storeId: storeId
-    });
-
-    if (hasCompletedOrder) {
-        //  Create a new customer document
-        const newCustomer = new Customer(baseCustomerDoc);
-        savedCustomer = await newCustomer.save();
-    } else {
-        // Update fields and eligibility_status array
-        const storeExists = existingCustomer.eligibility_status.some(
-            (entry) => entry.storeId.toString() === storeId.toString()
-        );
-
-        if (!storeExists) {
-            existingCustomer.eligibility_status.push({
-                storeId: storeId,
-                isEligible: isEligible
+        if (existingCustomer) {
+            const hasCompletedOrder = await OrdersModel.findOne({
+                customerId: existingCustomer._id,
+                status: 'Completed',
+                storeId: storeId
             });
-        } else {
-            // Optional: update isEligible value if needed
-            const storeEntry = existingCustomer.eligibility_status.find(
-                (entry) => entry.storeId.toString() === storeId.toString()
-            );
-            storeEntry.isEligible = isEligible;
+
+            if (hasCompletedOrder) {
+                //  Create a new customer document
+                const newCustomer = new Customer(baseCustomerDoc);
+                savedCustomer = await newCustomer.save();
+            } else {
+                // Update fields and eligibility_status array
+                const storeExists = existingCustomer.eligibility_status.some(
+                    (entry) => entry.storeId.toString() === storeId.toString()
+                );
+
+                if (!storeExists) {
+                    existingCustomer.eligibility_status.push({
+                        storeId: storeId,
+                        isEligible: isEligible
+                    });
+                } else {
+                    // Optional: update isEligible value if needed
+                    const storeEntry = existingCustomer.eligibility_status.find(
+                        (entry) => entry.storeId.toString() === storeId.toString()
+                    );
+                    storeEntry.isEligible = isEligible;
+                }
+
+                // Update other fields
+                existingCustomer.first_name = cleanedCustomerData.first_name;
+                existingCustomer.last_name = cleanedCustomerData.last_name;
+                existingCustomer.employment_type_id = cleanedCustomerData.employment_type_id || "Salaried";
+                existingCustomer.pan = cleanedCustomerData.pan;
+                existingCustomer.dob = cleanedCustomerData.dob;
+                existingCustomer.pincode = cleanedCustomerData.pincode;
+                existingCustomer.income = cleanedCustomerData.income;
+                existingCustomer.consent = true;
+                existingCustomer.consent_timestamp = new Date();
+                existingCustomer.message = result.message || '';
+                existingCustomer.eligibility_expiry_date = result?.data?.eligibility_expiry_date;
+                existingCustomer.max_eligibility_amount = result?.data?.max_eligibility_amount;
+                existingCustomer.tenure = result?.data?.tenure || undefined;
+                existingCustomer.data = result?.data || result;
+                existingCustomer.ChainStoreId = merchantId;
+                existingCustomer.storeId = storeId;
+              
+
+                if (!isEligible) {
+                    existingCustomer.LenderErrorapiResponse = result;
+                }
+
+                savedCustomer = await existingCustomer.save();
+            }
         }
-
-        // Update other fields
-        existingCustomer.first_name = cleanedCustomerData.first_name;
-        existingCustomer.last_name = cleanedCustomerData.last_name;
-        existingCustomer.employment_type_id = cleanedCustomerData.employment_type_id || "Salaried";
-        existingCustomer.pan = cleanedCustomerData.pan;
-        existingCustomer.dob = cleanedCustomerData.dob;
-        existingCustomer.pincode = cleanedCustomerData.pincode;
-        existingCustomer.income = cleanedCustomerData.income;
-        existingCustomer.consent = true;
-        existingCustomer.consent_timestamp = new Date();
-        existingCustomer.message = result.message || '';
-        existingCustomer.eligibility_expiry_date = result?.data?.eligibility_expiry_date;
-        existingCustomer.max_eligibility_amount = result?.data?.max_eligibility_amount;
-        existingCustomer.tenure = result?.data?.tenure || undefined;
-        existingCustomer.data = result?.data || result;
-        existingCustomer.ChainStoreId = merchantId;
-        existingCustomer.storeId = storeId;
-
-        if (!isEligible) {
-            existingCustomer.LenderErrorapiResponse = result;
-        }
-
-        savedCustomer = await existingCustomer.save();
-    }
-}
         else {
             // No customer exists — create new
             const newCustomer = new Customer(baseCustomerDoc);
             savedCustomer = await newCustomer.save();
         }
+        console.log("🚀 ~ checkCustomerEligibility ~ savedCustomer:", savedCustomer)
 
         return res.status(200).json({
             success: shouldProceed,

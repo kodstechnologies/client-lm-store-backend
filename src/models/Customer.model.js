@@ -82,7 +82,8 @@ const customerSchema = new mongoose.Schema({
         // required: true,
     },
     status: {
-        type: String
+        type: String,
+        default:null
     }
 }, {
     timestamps: true
