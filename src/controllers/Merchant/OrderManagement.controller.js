@@ -195,6 +195,7 @@ export const createOrderForEligibleCustomer = async (req, res) => {
         const newOrderId = `LMO_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
         const newQrUrl = `${REDIRECTION_URL}/order/${newOrderId}`;
         const expiryDate = customer.eligibility_expiry_date || new Date(now.setDate(now.getDate() + 30));
+        console.log("🚀 ~ createOrderForEligibleCustomer ~ expiryDate:", expiryDate)
 
         //  Check for existing 'QR Generated' order
         let existingOrder = await OrdersModel.findOne({
