@@ -403,7 +403,7 @@ export const searchOrderByNumber = async (req, res) => {
             number,
             storeId,
             eligibility_expiry_date: { $gte: now },
-        }).sort({ createdAt: -1 });
+        }).sort({ updatedAt: -1 });
 
         if (orders.length === 0) {
             return res.status(404).json({ message: 'No orders found for this number in this store' });
